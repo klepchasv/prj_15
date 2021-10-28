@@ -12,6 +12,32 @@ def convert_response_to_dict(response):
     return converted_dict
 
 
+def insert_data(data_type, col_name_1, col_name_2, col_name_3=""):
+    print(f"insertion {data_type}")
+    types = list(set(list(my_dict[data_type].values())))
+    i = 1
+
+    if col_name_3:
+        col_name_3 = ", " + col_name_3
+        val = "(?, ?, ?)"
+    else:
+        val = "(?, ?)"
+
+    for prop in types:
+        query_prop = f"""INSERT INTO {data_type} ({col_name_1}, {col_name_2}{col_name_3})
+                                  VALUES {val}"""
+
+        if col_name_3:
+            pr_1 = prop[0]
+            pr_2 = prop[1]
+            prop = (i, pr_1, pr_2)
+        else:
+            prop = (i, prop)
+        cur.execute(query_prop, prop)
+        i += 1
+    print(f"{data_type} inserted")
+
+
 con = sqlite3.connect("animal.db")
 print("connection with animal.db established")
 cur = con.cursor()
@@ -26,7 +52,8 @@ query_animals_list = "CREATE TABLE IF NOT EXISTS animals_list (" \
         "outcome_subtype NVARCHAR(200), " \
         "outcome_type_id INT, " \
         "outcome_month INT, " \
-        "outcome_year INT)"
+        "outcome_year INT, " \
+        "id NVARCHAR(20))"
 
 
 query_animal_type = "CREATE TABLE IF NOT EXISTS animal_type (" \
@@ -76,19 +103,29 @@ try:
 
         my_dict[header] = response
 
+# working with colors
+    query_colors = "SELECT animal_id, color1, color2 FROM animals"
+    cur.execute(query_colors)
+    animal_colors = {}
+    for line in cur.fetchall():
+        animal_colors[line[0]] = (line[1], line[2])
+
+    my_dict["color"] = animal_colors
+
     print("starting insertion cycle")
     for key in my_dict["name"].keys():
 
-        params = (0,
+        params = (1,
                   my_dict['name'][key],
-                  77,
-                  6,
-                  4,
+                  1,
+                  1,
+                  1,
                   '2020-01-01',
                   my_dict['outcome_subtype'][key],
-                  99,
+                  1,
                   my_dict['outcome_month'][key],
-                  my_dict['outcome_year'][key])
+                  my_dict['outcome_year'][key],
+                  key)
 
         query = f"""INSERT INTO animals_list (age_upon_outcome, 
                 name,
@@ -99,11 +136,20 @@ try:
                 outcome_subtype,
                 outcome_type_id,
                 outcome_month,
-                outcome_year)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+                outcome_year,
+                id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
         cur.execute(query, params)
     print("insertion cycle finished")
+
+    insert_data("animal_type", "id", "type")
+    insert_data("breed", "id", "breed")
+    insert_data("outcome_type", "id", "outcome")
+    insert_data("color", "id", "color_1", "color_2")
+
+
+
 
 
 except sqlite3.Error as err:
